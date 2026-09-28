@@ -135,15 +135,19 @@ def main():
     assert cand, "no parses survived"
 
     # ---- every claim of every candidate, checked one at a time ----
-    items = [(ci, c) for ci, (_, _, cs) in enumerate(cand) for c in cs]
-    print(f"checking {len(items)} claims", flush=True)
-    outs = generate(llm, items, lambda ic: {
+    # the K samples of an image repeat most claims, and a greedy verdict depends only on
+    # (image, claim), so each distinct pair is asked once
+    uniq = sorted({(r["image"], c) for r, _, cs in cand for c in cs})
+    print(f"checking {sum(len(cs) for _, _, cs in cand)} claims "
+          f"({len(uniq)} distinct image-claim pairs)", flush=True)
+    outs = generate(llm, uniq, lambda ic: {
         "prompt": IMG + Q.format(claim=ic[1]) + END,
-        "multi_modal_data": {"image": Image.open(cand[ic[0]][0]["image"]).convert("RGB")}},
+        "multi_modal_data": {"image": Image.open(ic[0]).convert("RGB")}},
         SamplingParams(temperature=0, max_tokens=4))
+    verdict = {k: o.outputs[0].text.strip().upper().startswith("Y") for k, o in zip(uniq, outs)}
     yes = collections.Counter()
-    for (ci, _), o in zip(items, outs):
-        yes[ci] += o.outputs[0].text.strip().upper().startswith("Y")
+    for ci, (r, _, cs) in enumerate(cand):
+        yes[ci] = sum(verdict[(r["image"], c)] for c in cs)
 
     # ---- Eq. (5)-(6) per image ----
     by_img = collections.defaultdict(list)

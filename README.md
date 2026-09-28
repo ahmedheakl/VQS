@@ -146,9 +146,6 @@ GPUS=0,1 MODEL=$PREV/huggingface bash scripts/train.sh data/c2/rl_train vqs_2b_c
 
 A third cycle adds `data/c3/rl_pool` to `--data` and starts from the second cycle's merged solver.
 
-See [`docs/RESULTS.md`](docs/RESULTS.md) for measured scores of an earlier configuration of this
-code and for two findings that matter if you plan to extend the loop.
-
 ## Layout
 
 ```

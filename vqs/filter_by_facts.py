@@ -63,8 +63,10 @@ def main():
             continue
         for c in cs:
             items.append((i, c))
-    print(f"{len(rows)} rows -> {len(items)} atomic checks; "
-          f"{n_nocheck} rows have no identifiable facts (passed through)", flush=True)
+    # greedy verdicts depend only on (image, claim): ask each distinct pair once, image by image
+    uniq = sorted({(rows[i]["image"], c) for i, c in items})
+    print(f"{len(rows)} rows -> {len(items)} atomic checks ({len(uniq)} distinct image-claim "
+          f"pairs); {n_nocheck} rows have no identifiable facts (passed through)", flush=True)
 
     from PIL import Image
     from vllm import LLM, SamplingParams
@@ -73,14 +75,11 @@ def main():
               limit_mm_per_prompt={"image": 1}, trust_remote_code=True, max_num_seqs=256,
               mm_processor_kwargs={"max_pixels": 1003520})
     sp = SamplingParams(temperature=0, max_tokens=4)
-    outs = generate(llm, items, lambda ic: {
+    outs = generate(llm, uniq, lambda ic: {
         "prompt": IMG + Q.format(claim=ic[1]) + END,
-        "multi_modal_data": {"image": Image.open(rows[ic[0]]["image"]).convert("RGB")}}, sp)
-
-    bad = set()
-    for (i, c), o in zip(items, outs):
-        if not o.outputs[0].text.strip().upper().startswith("Y"):
-            bad.add(i)
+        "multi_modal_data": {"image": Image.open(ic[0]).convert("RGB")}}, sp)
+    yes = {k: o.outputs[0].text.strip().upper().startswith("Y") for k, o in zip(uniq, outs)}
+    bad = {i for i, c in items if not yes[(rows[i]["image"], c)]}
     kept = [r for i, r in enumerate(rows) if i not in bad]
     pathlib.Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     with open(a.out, "w") as f:
