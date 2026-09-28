@@ -179,11 +179,7 @@ best way to pick the parser's targets.
 
 ### What matters
 
-<table>
-<tr>
-<td valign="top" width="50%">
-
-**Components** (Qwen3-VL-2B)
+**Components** (Qwen3-VL-2B). Removing the fact-checker costs the most after parser training.
 
 | Pipeline | Solver acc. | Parser prec. |
 |:--|--:|--:|
@@ -194,21 +190,14 @@ best way to pick the parser's targets.
 | without blind gate | 61.8 | 87.6 |
 | without difficulty band | 62.1 | 87.6 |
 
-</td>
-<td valign="top" width="50%">
+**Question design** (Qwen3-VL-2B, equal training budget). Bold marks the VQS default.
 
-**Question design** (Qwen3-VL-2B, equal budget)
-
-| Choice | Setting | Solver acc. |
-|:--|:--|--:|
-| Family difficulty | Easy / **Middle** / Hard | 60.8 / **62.4** / 61.1 |
-| Generator | **Fixed templates** / model-written programs | **62.4** / 61.4 |
-| Curriculum | Shuffled / global hops / **within-family hops** | 61.3 / 61.7 / **62.4** |
-| Difficulty band | **Initial** / refreshed selection | **62.4** / 62.3 |
-
-</td>
-</tr>
-</table>
+| Choice | Setting → solver accuracy |
+|:--|:--|
+| Family difficulty | Easy 60.8 · **Middle 62.4** · Hard 61.1 |
+| Generator | **Fixed templates 62.4** · model-written programs 61.4 |
+| Curriculum | Shuffled 61.3 · global hops 61.7 · **within-family hops 62.4** |
+| Difficulty band | **Initial selection 62.4** · refreshed selection 62.3 |
 
 ### Scale, coverage and more cycles
 
