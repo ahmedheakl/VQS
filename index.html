@@ -11,6 +11,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="static/explorer.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -190,6 +191,7 @@ footer { padding: 40px 0 60px; color: var(--faint); font-size: 14px; text-align:
   <a class="brand" href="#">VQS</a>
   <a class="link" href="#problem">Problem</a>
   <a class="link" href="#method">Method</a>
+  <a class="link" href="#explore">Explore</a>
   <a class="link" href="#results">Results</a>
   <a class="link" href="#analysis">Analysis</a>
   <a class="link" href="#citation">Citation</a>
@@ -255,6 +257,21 @@ footer { padding: 40px 0 60px; color: var(--faint); font-size: 14px; text-align:
   <p class="lead" style="margin-bottom:16px">The parser samples K = 4 parses per image. Each is scored by the fraction of its claims the checker confirms, and the best becomes an SFT target only if it beats the mean of the four by δ = 0.10 and asserts at least m = 4 claims.</p>
   <figure class="fig"><img src="static/images/parser_training.png" alt="Label-free parser training">
     <figcaption><b>Label-free parser training.</b> z₂ calls the mug blue and puts it right of the book, so it passes 6 of 8 claims. z₁ passes 8/8 and beats the mean (0.75) by the margin, so it becomes the target.</figcaption></figure>
+</div></section>
+
+<section id="explore"><div class="wrap">
+  <h2>Explore the pipeline</h2>
+  <p class="lead">Ninety-three generated questions, each traced from the image to the final keep-or-drop decision: the parse, the program that computed the answer, the question rewrite, every fact the model re-read, and its four guesses without the image. Everything shown was produced by Qwen3-VL-2B on its own parses; nothing is written by hand. Open any card, or start with one of these:</p>
+  <div class="tour" id="tour"></div>
+  <div class="xfilters">
+    <div class="chips" id="fDom" aria-label="Filter by domain"></div>
+    <div class="chips" id="fOut" aria-label="Filter by outcome"></div>
+    <input class="xsearch" id="xSearch" type="search" placeholder="Search questions, answers, families" aria-label="Search examples">
+  </div>
+  <div class="xcount" id="xCount"></div>
+  <div class="xgrid" id="xGrid"></div>
+  <div class="xmore" id="xMore"></div>
+  <p class="note" style="margin-top:18px">Keep and drop decisions apply the paper's gates to the recorded outputs: a question is dropped if a read-back contradicts the parse, or if more than half of the four blind answers match. "Human-graded" examples carry a rater's verdict from the paper's human evaluation.</p>
 </div></section>
 
 <section id="results"><div class="wrap">
@@ -354,6 +371,8 @@ footer { padding: 40px 0 60px; color: var(--faint); font-size: 14px; text-align:
   </div>
 </div></section>
 
+<dialog class="viewer" id="viewer" aria-labelledby="vTitle"></dialog>
+
 <footer><div class="wrap">VQS · <a href="https://github.com/ahmedheakl/VQS">github.com/ahmedheakl/VQS</a></div></footer>
 
 <script>
@@ -411,5 +430,7 @@ document.getElementById("copyBib").addEventListener("click", async (e) => {
   setTimeout(() => e.target.textContent = "Copy", 1600);
 });
 </script>
+<script src="static/examples.js" defer></script>
+<script src="static/explorer.js" defer></script>
 </body>
 </html>
