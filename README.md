@@ -33,6 +33,9 @@ training targets. One set of weights plays parser, checker and solver.
   </tr>
 </table>
 
+<p align="center"><a href="https://ahmedheakl.github.io/VQS/#explore"><b>Explore 93 traced questions interactively →</b></a><br>
+<sub>parses, template programs, fact-check read-backs and blind-gate guesses, from image to keep-or-drop</sub></p>
+
 ## Contents
 
 - [Why computed answers](#why-computed-answers)
