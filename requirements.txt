@@ -1,0 +1,10 @@
+# Question generation + filtering (CPU, plus a VLM for parsing/verification via vLLM)
+vllm>=0.10
+transformers>=4.57
+pillow
+num2words
+
+# Training is done with EasyR1, installed separately from its own repo:
+#   git clone https://github.com/hiyouga/EasyR1 && cd EasyR1 && pip install -e .
+# Evaluation uses lmms-eval:
+#   git clone https://github.com/EvolvingLMMs-Lab/lmms-eval && cd lmms-eval && pip install -e .
