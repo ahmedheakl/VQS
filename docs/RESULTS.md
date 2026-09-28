@@ -1,7 +1,10 @@
 # Measured results
 
-Qwen3-VL-2B-Instruct, evaluated with lmms-eval. Every number here was produced by the
-configuration in `scripts/train.sh`; nothing is interpolated or estimated.
+Qwen3-VL-2B-Instruct, evaluated with lmms-eval. Every number here was produced by
+`scripts/train.sh` and `scripts/eval.sh` as they were at commit `0c134cf` (128 GRPO steps;
+evaluation with `max_new_tokens=64, temperature=0` on every benchmark); nothing is interpolated or
+estimated. The scripts now use the paper's settings (96 steps, each benchmark's default
+generation settings), so re-running them is not expected to reproduce this table exactly.
 
 | Run | GQA | OK-VQA | InfoVQA | SQA | MMMU | MMB | ESB | LogicV | MMStar | SEED | Avg |
 |---|---|---|---|---|---|---|---|---|---|---|---|

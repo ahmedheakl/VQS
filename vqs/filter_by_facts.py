@@ -6,11 +6,13 @@ runs/review/qa_checker_validation.json). The PER-FACT checker is validated on 27
 precision 0.890-0.916 with trap-YES 0.026-0.043 (runs/parser_eval/*.json). So we ask atomic
 questions the checker can actually answer, about the specific cells the program read.
 
-Row is kept iff EVERY supporting fact returns YES. Rows whose facts we cannot identify are
-passed through untouched and counted, so the filter never silently drops what it cannot judge.
+Row is kept iff EVERY supporting fact returns YES (paper Eq. 1: the product over all claims the
+template read). The checker is the parser's own weights, greedy, four new tokens (paper Sec. 4);
+pass the trained parser as --model. Rows whose facts we cannot identify are passed through
+untouched and counted, so the filter never silently drops what it cannot judge.
 
-Usage: CUDA_VISIBLE_DEVICES=7 python scripts/filter_by_facts.py \
-   --qa runs/qa5/all_gated.jsonl --out runs/qa6/fact_filtered.jsonl [--limit 0]
+Usage: CUDA_VISIBLE_DEVICES=7 python vqs/filter_by_facts.py \
+   --qa data/para.jsonl --out data/verified.jsonl --model <trained parser> [--limit 0]
 """
 import argparse, collections, json, os, pathlib, re
 # honour the caller's HF_HOME; do not pin it to a local path
@@ -21,8 +23,8 @@ Q = '{claim}\nLooking only at the image, is that statement true? Answer with one
 CELL = re.compile(r"CELL\(([^,]*),([^,]*),([^)]*)\)")
 
 
-def claims_of(row):
-    """The atomic statements the computed answer rests on."""
+def claims_of(row, max_claims=0):
+    """The atomic statements the computed answer rests on: one per field the program read."""
     out = []
     for p in (row.get("provenance") or []):
         m = CELL.search(str(p))
@@ -36,7 +38,8 @@ def claims_of(row):
             if v:
                 out.append(f"There is a {v} in this image.")
                 break
-    return out[:4]          # cap: 4 checks per row keeps the sweep affordable
+    # every claim is checked, as in Eq. (1); --max-claims only exists to cut cost on a smoke run
+    return out[:max_claims] if max_claims else out
 
 
 def main():
@@ -44,6 +47,8 @@ def main():
     ap.add_argument("--qa", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--model", default=MODEL, help="the trained parser (it is also the checker)")
+    ap.add_argument("--max-claims", type=int, default=0, help="0 = check every claim")
     ap.add_argument("--gpu-util", type=float, default=0.85)
     a = ap.parse_args()
     rows = [json.loads(l) for l in open(a.qa)]
@@ -52,7 +57,7 @@ def main():
     items, owner = [], []
     n_nocheck = 0
     for i, r in enumerate(rows):
-        cs = claims_of(r)
+        cs = claims_of(r, a.max_claims)
         if not cs:
             n_nocheck += 1
             continue
@@ -63,15 +68,14 @@ def main():
 
     from PIL import Image
     from vllm import LLM, SamplingParams
-    llm = LLM(model=MODEL, max_model_len=8192, gpu_memory_utilization=a.gpu_util,
+    from vlm import generate
+    llm = LLM(model=a.model, max_model_len=8192, gpu_memory_utilization=a.gpu_util,
               limit_mm_per_prompt={"image": 1}, trust_remote_code=True, max_num_seqs=256,
               mm_processor_kwargs={"max_pixels": 1003520})
     sp = SamplingParams(temperature=0, max_tokens=4)
-    reqs = [{"prompt": IMG + Q.format(claim=c) + END,
-             "multi_modal_data": {"image": Image.open(rows[i]["image"]).convert("RGB")}}
-            for i, c in items]
-    outs = llm.generate(reqs, sp)
-    assert len(outs) == len(items), f"{len(outs)} vs {len(items)}"
+    outs = generate(llm, items, lambda ic: {
+        "prompt": IMG + Q.format(claim=ic[1]) + END,
+        "multi_modal_data": {"image": Image.open(rows[ic[0]]["image"]).convert("RGB")}}, sp)
 
     bad = set()
     for (i, c), o in zip(items, outs):

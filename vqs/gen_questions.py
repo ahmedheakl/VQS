@@ -285,6 +285,8 @@ def main():
     ap.add_argument("--parses")
     ap.add_argument("--out")
     ap.add_argument("--per-family", type=int, default=2)
+    ap.add_argument("--seed", type=int, default=0,
+                    help="a later cycle passes a new seed to draw new questions from the same parses")
     a = ap.parse_args()
     if a.selftest:
         selftest()
@@ -292,7 +294,7 @@ def main():
     rows = [json.loads(l) for l in open(a.parses)]
     vocab = build_vocab(rows)
     print(f"vocab from our own parses: {len(vocab)} names", flush=True)
-    rng = random.Random(0)
+    rng = random.Random(a.seed)
     pathlib.Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fam_c, dom_c, diff_c, n = collections.Counter(), collections.Counter(), collections.Counter(), 0
     with open(a.out, "w") as f:
