@@ -19,12 +19,19 @@ Usage:  python scripts/gen_questions_v2.py --selftest
 import argparse
 import collections
 import json
+import os
 import pathlib
 import ast
 import math
 import random
 import re
 import sys
+
+# Some family modules iterate over sets of strings, whose order follows Python's per-process hash
+# seed; pin it so the same parses and --seed always give the same questions.
+if __name__ == "__main__" and os.environ.get("PYTHONHASHSEED") != "0":
+    os.environ["PYTHONHASHSEED"] = "0"
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 
 # the template-family modules are vendored under vqs/src/ so this repo runs standalone
 SG = str(pathlib.Path(__file__).resolve().parent)
@@ -161,7 +168,9 @@ def chart_progs(parse, rng, per_family):
                         "difficulty": q.get("difficulty", 2), "question": q["question"],
                         "answer": str(q["answer"]),
                         "answer_type": q.get("answer_type", "word"),
-                        "acceptable": [str(x) for x in (q.get("acceptable") or [q["answer"]])]})
+                        "acceptable": [str(x) for x in (q.get("acceptable") or [q["answer"]])],
+                        # the cells the program read: filter_by_facts checks one claim per cell
+                        "provenance": q.get("provenance")})
     for p in (v5.propose_v5(t, rng, max_per_image=40) or []):
         res = v5.execute_v5(p, t)   # returns (answer, answer_type, provenance) -- MUST unpack
         if res is None:
@@ -192,7 +201,8 @@ def infog_progs(parse, rng, per_family):
                 out.append({"domain": "infographics", "family": "ig_" + str(q.get("family")),
                             "difficulty": q.get("difficulty", 2), "question": q["question"],
                             "answer": str(q["answer"]), "answer_type": q.get("answer_type", "word"),
-                            "acceptable": [str(x) for x in (q.get("acceptable") or [q["answer"]])]})
+                            "acceptable": [str(x) for x in (q.get("acceptable") or [q["answer"]])],
+                            "provenance": q.get("provenance")})
         for pr in (v5.propose_v5(tbl, rng, max_per_image=30) or []):
             res = v5.execute_v5(pr, tbl)
             qq = pr.get("question") or pr.get("q")
