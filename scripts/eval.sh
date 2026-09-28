@@ -8,16 +8,20 @@
 # the training resolution.
 #
 #   python $EASYR1/scripts/model_merger.py --local_dir runs/vqs_2b/ckpt/global_step_96/actor
-#   bash scripts/eval.sh 0 runs/vqs_2b/ckpt/global_step_96/actor/huggingface
+#   OUT=runs/eval/vqs_2b bash scripts/eval.sh 0 runs/vqs_2b/ckpt/global_step_96/actor/huggingface
+#   OUT=runs/eval/base_2b bash scripts/eval.sh 1 Qwen/Qwen3-VL-2B-Instruct
+#
+# TASKS overrides the benchmark list, e.g. to split the suite across GPUs.
 set -euo pipefail
 GPU=$1; MODEL=$2
-TASKS="gqa ok_vqa_val2014 infovqa_val scienceqa_img mmmu_val mmbench_en_dev \
-embspatial logicvista_reasoning mmstar seedbench"
+OUT=${OUT:-runs/eval}
+TASKS=${TASKS:-"gqa ok_vqa_val2014 infovqa_val scienceqa_img mmmu_val mmbench_en_dev \
+embspatial logicvista_reasoning mmstar seedbench"}
 for t in $TASKS; do
   CUDA_VISIBLE_DEVICES=$GPU python -m lmms_eval \
     --model vllm \
     --model_args model="$MODEL",max_pixels=1003520 \
     --tasks "$t" \
     --batch_size 256 \
-    --output_path "runs/eval/$t" --log_samples
+    --output_path "$OUT/$t" --log_samples
 done
