@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VQS: Program-Verified Self-Evolution for Vision-Language Models</title>
+<meta name="description" content="VQS lets a vision-language model improve itself from unlabeled images: programs compute the answers from a verified structured parse, instead of majority votes or model judges.">
+<meta property="og:title" content="Program-Verified Self-Evolution for Vision-Language Models">
+<meta property="og:description" content="Programs compute the answers from a verified parse of each image. +3.18 over 10 benchmarks at Qwen3-VL-2B, with no human labels.">
+<meta property="og:image" content="static/images/overview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --border: #e2e8f0;
+  --text: #0f172a; --muted: #475569; --faint: #94a3b8;
+  --accent: #2563eb; --accent-2: #7c3aed; --accent-soft: #dbeafe;
+  --good: #059669; --bad: #dc2626; --ours: #eff6ff; --ours-border: #93c5fd;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .06);
+  --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1120; --surface: #111a2e; --surface-2: #17223a; --border: #24324d;
+    --text: #e2e8f0; --muted: #a3b1c6; --faint: #6b7a93;
+    --accent: #60a5fa; --accent-2: #a78bfa; --accent-soft: #1e3a8a;
+    --good: #34d399; --bad: #f87171; --ours: #13254a; --ours-border: #3b5ba9;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.65 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+nav.top {
+  position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(180%) blur(12px);
+  background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--border);
+}
+nav.top .wrap { display: flex; align-items: center; gap: 22px; height: 56px; overflow-x: auto; }
+nav.top .brand { font-weight: 800; letter-spacing: -.02em; color: var(--text); margin-right: auto; }
+nav.top a.link { color: var(--muted); font-size: 14px; font-weight: 500; white-space: nowrap; }
+nav.top a.link:hover { color: var(--text); text-decoration: none; }
+
+header.hero { padding: 72px 0 36px; text-align: center; }
+.eyebrow {
+  display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft); padding: 6px 12px; border-radius: 999px;
+}
+h1.title {
+  font-family: "Source Serif 4", Georgia, serif; font-weight: 700; letter-spacing: -.02em;
+  font-size: clamp(32px, 5vw, 54px); line-height: 1.12; margin: 22px auto 22px; max-width: 900px;
+}
+h1.title .grad {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.authors, .affils { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; }
+.authors { font-size: 18px; font-weight: 600; }
+.authors span, .affils span { white-space: nowrap; }
+.authors sup, .affils sup { color: var(--accent); font-weight: 600; }
+.affils { color: var(--muted); font-size: 15px; margin-top: 8px; }
+.buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 28px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 999px;
+  font-weight: 600; font-size: 15px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); box-shadow: var(--shadow); transition: transform .15s ease;
+}
+.btn:hover { transform: translateY(-1px); text-decoration: none; }
+.btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn svg { width: 18px; height: 18px; }
+
+section { padding: 44px 0; }
+h2 {
+  font-family: "Source Serif 4", Georgia, serif; font-size: clamp(26px, 3vw, 34px);
+  letter-spacing: -.01em; margin: 0 0 10px;
+}
+h3 { font-size: 19px; margin: 34px 0 10px; letter-spacing: -.01em; }
+p.lead { color: var(--muted); font-size: 17px; max-width: 820px; margin: 0 0 22px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.pad { padding: 26px 28px; }
+
+.teaser { display: grid; grid-template-columns: 1fr 1.25fr; gap: 26px; align-items: center; }
+.teaser .fig { padding: 18px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.stat { padding: 20px 22px; }
+.stat .num {
+  font-size: 38px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.stat .lbl { font-weight: 600; margin-top: 6px; }
+.stat .sub { color: var(--muted); font-size: 13.5px; margin-top: 4px; line-height: 1.45; }
+
+.abstract { font-size: 16.5px; }
+.abstract p { margin: 0; }
+
+figure { margin: 0; }
+figure.fig { padding: 18px; background: #fff; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); }
+figure.fig img { width: 100%; height: auto; display: block; }
+figcaption { color: var(--muted); font-size: 14.5px; margin-top: 12px; line-height: 1.55; }
+figcaption b { color: var(--text); }
+@media (prefers-color-scheme: dark) { figcaption { color: #cbd5e1; } figure.fig figcaption { color: #334155; } figure.fig figcaption b { color: #0f172a; } }
+
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 8px 0 26px; }
+.step { padding: 20px; }
+.step .k {
+  width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 800;
+  color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-2)); margin-bottom: 12px;
+}
+.step h4 { margin: 0 0 6px; font-size: 16px; }
+.step p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
+
+.tabs { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px; gap: 4px; margin-bottom: 16px; }
+.tab { border: 0; background: transparent; color: var(--muted); font: 600 14px Inter, sans-serif; padding: 8px 16px; border-radius: 999px; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.table-scroll { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+th, td { padding: 11px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: inherit; }
+thead th:first-child { background: var(--surface-2); }
+thead th { font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--surface-2); }
+tbody tr { background: var(--surface); }
+tbody tr:last-child td { border-bottom: 0; }
+tr.ours { background: var(--ours); }
+tr.ours td { font-weight: 700; }
+tr.ours td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+td .d { font-size: 12px; font-weight: 600; margin-left: 4px; }
+table.main th, table.main td { padding: 10px 9px; }
+table.main td .v { display: block; }
+table.main td .d { display: block; margin: 1px 0 0; font-size: 11.5px; }
+table.compact th { white-space: normal; }
+table.compact th, table.compact td { padding: 10px 12px; }
+.card-title { font-weight: 700; margin-bottom: 14px; }
+table.design td:nth-child(2) { white-space: normal; min-width: 150px; text-align: left; }
+table.design th:nth-child(2) { text-align: left; }
+.facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.facts li { display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: baseline; }
+.facts .n { font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: var(--accent); text-align: right; }
+.facts .t { color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+.facts .t b { color: var(--text); }
+td .d.up { color: var(--good); } td .d.down { color: var(--bad); }
+td.best .v { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.note { color: var(--muted); font-size: 13.5px; margin-top: 10px; }
+
+.bars { display: grid; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: 110px 1fr 64px; gap: 12px; align-items: center; font-size: 14.5px; }
+.bar-track { height: 14px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 999px; background: var(--faint); width: 0; transition: width .6s ease; }
+.bar-row.ours .bar-fill { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.bar-row.ours { font-weight: 700; }
+.bar-val { text-align: right; font-variant-numeric: tabular-nums; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+.grid-2 > * { min-width: 0; }
+.center { text-align: center; }
+
+pre.bib {
+  margin: 0; padding: 22px; overflow-x: auto; font: 13.5px/1.6 "JetBrains Mono", ui-monospace, monospace;
+  background: var(--surface-2); border-radius: 12px; border: 1px solid var(--border);
+}
+.bib-wrap { position: relative; }
+.copy {
+  position: absolute; top: 12px; right: 12px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font: 600 13px Inter, sans-serif; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+}
+footer { padding: 40px 0 60px; color: var(--faint); font-size: 14px; text-align: center; }
+
+@media (max-width: 860px) {
+  .teaser, .grid-2 { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 520px) {
+  .steps, .stats { grid-template-columns: 1fr; }
+  .wrap { padding: 0 16px; }
+  .pad { padding: 20px; }
+  .bar-row { grid-template-columns: 90px 1fr 56px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <a class="brand" href="#">VQS</a>
+  <a class="link" href="#problem">Problem</a>
+  <a class="link" href="#method">Method</a>
+  <a class="link" href="#results">Results</a>
+  <a class="link" href="#analysis">Analysis</a>
+  <a class="link" href="#citation">Citation</a>
+  <a class="link" href="https://github.com/ahmedheakl/VQS">Code</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <span class="eyebrow">Self-evolving vision-language models</span>
+  <h1 class="title"><span class="grad">Program-Verified</span> Self-Evolution for Vision-Language Models</h1>
+  <div class="authors">
+    <span>Ahmed Heakl<sup>1,2</sup></span><span>Sungik Choi<sup>1</sup></span><span>Moontae Lee<sup>1,4</sup></span><span>Salman Khan<sup>2,3</sup></span>
+  </div>
+  <div class="affils">
+    <span><sup>1</sup>LG AI Research</span><span><sup>2</sup>MBZUAI</span><span><sup>3</sup>Australian National University</span><span><sup>4</sup>University of Illinois at Chicago</span>
+  </div>
+  <div class="buttons">
+    <a class="btn primary" href="https://github.com/ahmedheakl/VQS">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+      Code
+    </a>
+    <a class="btn" href="#results">Results</a>
+    <a class="btn" href="#citation">BibTeX</a>
+  </div>
+</div></header>
+
+<section style="padding-top:8px"><div class="wrap">
+  <div class="teaser">
+    <figure class="fig"><img src="static/images/radar.png" alt="Radar chart: VQS improves every benchmark on Qwen3-VL-2B, VISE loses on LogicVista and MMStar">
+      <figcaption><b>VQS improves every benchmark.</b> Qwen3-VL-2B; VISE, the strongest baseline, loses on LogicVista and MMStar.</figcaption></figure>
+    <div class="stats">
+      <div class="card stat"><div class="num">94.4%</div><div class="lbl">of VQS answers are correct</div><div class="sub">Human evaluation; 76.4% for majority vote, 82.2% for a model judge.</div></div>
+      <div class="card stat"><div class="num">+3.18</div><div class="lbl">average over 10 benchmarks</div><div class="sub">Qwen3-VL-2B after one cycle, against +1.01 for the strongest baseline.</div></div>
+      <div class="card stat"><div class="num">3 / 3</div><div class="lbl">scales won</div><div class="sub">Largest gain at 2B, 4B and 8B: +3.18, +2.32 and +2.43.</div></div>
+      <div class="card stat"><div class="num">+3.84</div><div class="lbl">after three cycles</div><div class="sub">Gains keep growing on the same unlabeled images.</div></div>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Abstract</h2>
+  <div class="card pad abstract"><p>Self-evolving vision-language models train on questions they generate from unlabeled images. Since these questions have no gold answers, prior methods label them by majority vote over sampled answers or by a model judge. In a human evaluation, we find that 24% of majority-vote labels and 18% of model-judge labels produced during self-evolution are wrong. To address this problem, we present Verifiable QA Generation for Self-Evolving Models (VQS), which changes how the model judges answers. Instead of voting on an answer, the model parses each image into a structured record, such as a scene graph, a chart table, or a diagram graph. Fixed programs then write a question from the record and compute its answer. The model still acts as a visual checker, but it only confirms the individual facts the program reads, one short claim at a time. These claim-level checks select the parser's training targets, so the parser also improves without labels. Human raters find 94% of VQS answers correct, against 76% for majority voting. Across ten benchmarks, VQS improves Qwen3-VL by up to 3.18 points at the 2B, 4B, and 8B scales and outperforms the strongest self-evolving baseline at each. Gains keep growing over three training rounds, reaching 3.84 points at 2B.</p></div>
+</div></section>
+
+<section id="problem"><div class="wrap">
+  <h2>Majority votes reward wrong answers</h2>
+  <p class="lead">Without gold answers, prior self-evolving methods take their label from the solver's own outputs. When most samples are wrong, the wrong answer becomes the label and is reinforced. VQS computes the answer with a program over a checked parse instead.</p>
+  <figure class="fig"><img src="static/images/overview.png" alt="Majority-vote labels vs. computed answers">
+    <figcaption><b>Majority-vote labels vs. computed answers.</b> (a) In prior self-play, three of five answers say 2 mugs, so the wrong answer is rewarded and the correct "1" is discarded. (b) VQS: a schema-constrained parser turns the image into a structured parse, a fixed template writes the question and computes its answer, a visual checker verifies each claim behind it, a blind gate drops questions answerable without the image, a difficulty band keeps questions the solver gets right in some but not all of 8 rollouts, and GRPO rewards exact match with the computed answer.</figcaption></figure>
+</div></section>
+
+<section id="method"><div class="wrap">
+  <h2>Method</h2>
+  <p class="lead">One set of weights plays every role: parser, paraphraser, checker, blind gate and solver. No human question, answer or label is used at any stage.</p>
+  <div class="steps">
+    <div class="card step"><div class="k">1</div><h4>Parse</h4><p>The model turns each image into a record under a per-domain JSON schema that the decoder enforces.</p></div>
+    <div class="card step"><div class="k">2</div><h4>Program</h4><p>70 template families read the record and return a question, its computed answer and its hop count.</p></div>
+    <div class="card step"><div class="k">3</div><h4>Check</h4><p>Every claim behind the answer is confirmed against the image; a blind gate and a difficulty band filter the rest.</p></div>
+    <div class="card step"><div class="k">4</div><h4>Train</h4><p>GRPO with reward 0.9 × exact match + 0.1 × format, in a curriculum ordered by hop count.</p></div>
+  </div>
+  <figure class="fig"><img src="static/images/parsing_examples.png" alt="Examples of structured scene parsing">
+    <figcaption><b>Structured parsing.</b> Photos become object–relation graphs, charts become series of printed and numeric values, diagrams become directed graphs, and infographics become entry records.</figcaption></figure>
+  <h3>Label-free parser training</h3>
+  <p class="lead" style="margin-bottom:16px">The parser samples K = 4 parses per image. Each is scored by the fraction of its claims the checker confirms, and the best becomes an SFT target only if it beats the mean of the four by δ = 0.10 and asserts at least m = 4 claims.</p>
+  <figure class="fig"><img src="static/images/parser_training.png" alt="Label-free parser training">
+    <figcaption><b>Label-free parser training.</b> z₂ calls the mug blue and puts it right of the book, so it passes 6 of 8 claims. z₁ passes 8/8 and beats the mean (0.75) by the margin, so it becomes the target.</figcaption></figure>
+</div></section>
+
+<section id="results"><div class="wrap">
+  <h2>Results</h2>
+  <p class="lead">Ten benchmarks, three Qwen3-VL scales, five self-evolving baselines. VQS gives the largest average gain at every scale and improves all ten benchmarks at each.</p>
+  <div class="tabs" role="tablist" id="scaleTabs"></div>
+  <div class="table-scroll"><table id="mainTable" class="main"></table></div>
+  <p class="note">InfoVQA = InfographicsVQA, SQA = ScienceQA, MMB = MMBench, ESB = EmbSpatial, LogicV = LogicVista. Small numbers are changes against the backbone's own base; underlined values are the best trained model per column.</p>
+
+  <div class="grid-2" style="margin-top:26px">
+    <div class="card pad"><div class="card-title" id="gainTitle">Average gain over base</div><div class="bars" id="gainBars"></div></div>
+    <div class="card pad">
+      <div class="card-title">Are the generated answers correct?</div>
+      <div class="bars" id="humanBars"></div>
+      <p class="note" style="margin-top:16px">Human raters checked 500 shared questions, 125 per visual domain. Accuracy among retained questions; VQS keeps 76.0% of questions, majority vote 92.0%, the model judge 90.8%.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="analysis"><div class="wrap">
+  <h2>Analysis</h2>
+  <div class="grid-2">
+    <div>
+      <h3 style="margin-top:0">Choosing the parser's targets</h3>
+      <div class="table-scroll"><table class="compact">
+      <thead><tr><th>Parser target</th><th>Parse prec.</th><th>Answer acc.</th><th>Solver acc.</th></tr></thead>
+      <tbody>
+        <tr><td>Untrained</td><td>80.8</td><td>86.8</td><td>58.0</td></tr>
+        <tr><td>Random parse</td><td>82.1</td><td>91.0</td><td>61.5</td></tr>
+        <tr><td>Whole-parse check</td><td>85.0</td><td>94.0</td><td>62.0</td></tr>
+        <tr class="ours"><td>Per-claim check (VQS)</td><td>87.6</td><td>96.1</td><td>62.4</td></tr>
+      </tbody></table></div>
+      <p class="note">Precision and answer accuracy rated by hand on 150 samples; solver accuracy is the 10-benchmark average of a 2B solver trained on each parser's questions.</p>
+    </div>
+    <figure class="fig"><img src="static/images/parser_f1.png" alt="Parser structured F1 before and after training">
+      <figcaption><b>The parser improves without labels.</b> F1 against human annotations rises by 5.0 on GQA scene graphs, 6.6 on ChartQA tables and 7.4 on AI2D-RST diagrams.</figcaption></figure>
+  </div>
+  <figure class="fig" style="margin-top:22px"><img src="static/images/parser_selection.png" alt="Parser target selection: quality and coverage">
+    <figcaption><b>Parser target selection.</b> Each panel varies one setting around (K, δ, m) = (4, 0.10, 4). Precision is the share of correct visual claims after training; retained is the share of images yielding a target.</figcaption></figure>
+
+  <h3>Gains keep growing over cycles</h3>
+  <div class="grid-2">
+    <figure class="fig"><img src="static/images/cycles.png" alt="Gains across training cycles">
+      <figcaption><b>Average gain over base per benchmark category</b> for Qwen3-VL-2B. Each cycle merges the previous solver, writes new questions on the same images and resamples toward a 50% solve rate.</figcaption></figure>
+    <div class="card pad">
+      <ul class="facts">
+        <li><span class="n">+3.84</span><span class="t"><b>after three cycles</b>, up from +3.18 after one and +3.41 after two. The third cycle adds more than the second, so the curve has not flattened.</span></li>
+        <li><span class="n">+5.94</span><span class="t"><b>on knowledge and reasoning</b> benchmarks, led by ScienceQA (+8.53) and MMMU (+8.44).</span></li>
+        <li><span class="n">+2.62</span><span class="t"><b>on perception</b> and +2.24 on general benchmarks.</span></li>
+        <li><span class="n">9 / 10</span><span class="t"><b>benchmarks improve in every cycle.</b> MMStar peaks after cycle 1 and still ends 0.93 above base.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>What matters</h3>
+  <div class="grid-2">
+    <div class="table-scroll"><table class="compact">
+      <thead><tr><th>Pipeline (2B)</th><th>Solver acc.</th><th>Parser prec.</th></tr></thead>
+      <tbody>
+        <tr><td>Untrained parser</td><td>58.0</td><td>80.8</td></tr>
+        <tr class="ours"><td>Full VQS</td><td>62.4</td><td>87.6</td></tr>
+        <tr><td>without constrained decoding</td><td>61.9</td><td>85.3</td></tr>
+        <tr><td>without fact-checker</td><td>60.9</td><td>87.6</td></tr>
+        <tr><td>without blind gate</td><td>61.8</td><td>87.6</td></tr>
+        <tr><td>without difficulty band</td><td>62.1</td><td>87.6</td></tr>
+      </tbody></table></div>
+    <div class="table-scroll"><table class="compact design">
+      <thead><tr><th>Question design (2B)</th><th>Setting</th><th>Solver acc.</th></tr></thead>
+      <tbody>
+        <tr><td>Family difficulty</td><td>Easy / <b>Middle</b> / Hard</td><td>60.8 / <b>62.4</b> / 61.1</td></tr>
+        <tr><td>Generator</td><td><b>Fixed templates</b> / written programs</td><td><b>62.4</b> / 61.4</td></tr>
+        <tr><td>Curriculum</td><td>Shuffled / global / <b>within-family</b></td><td>61.3 / 61.7 / <b>62.4</b></td></tr>
+        <tr><td>Difficulty band</td><td><b>Initial</b> / refreshed</td><td><b>62.4</b> / 62.3</td></tr>
+      </tbody></table></div>
+  </div>
+
+  <h3>Scale and coverage</h3>
+  <figure class="fig"><img src="static/images/scale_coverage.png" alt="What scale and coverage change">
+    <figcaption><b>What scale and coverage change.</b> (a) RL changes fewer benchmark answers at larger scale: 7.82% at 2B, 5.58% at 4B, 4.93% at 8B. (b) All three scales reach a training reward of about 0.80. (c) More template families keep raising the 2B gain, from 1.9 with 10 families to 3.18 with 70.</figcaption></figure>
+
+  <h3>Other model families</h3>
+  <div class="tabs" role="tablist" id="famTabs"></div>
+  <div class="table-scroll"><table id="famTable" class="main"></table></div>
+  <p class="note">VQS improves all ten benchmarks for every family: +1.77 on Gemma3-12B-It, +1.51 on InternVL3-8B-Instruct and +1.84 on Llama-3.2-11B-Vision-Instruct.</p>
+</div></section>
+
+<section id="citation"><div class="wrap">
+  <h2>Citation</h2>
+  <div class="bib-wrap">
+    <button class="copy" id="copyBib" type="button">Copy</button>
+<pre class="bib" id="bib">@misc{heakl2026vqs,
+  title  = {Program-Verified Self-Evolution for Vision-Language Models},
+  author = {Heakl, Ahmed and Choi, Sungik and Lee, Moontae and Khan, Salman},
+  year   = {2026},
+  url    = {https://github.com/ahmedheakl/VQS}
+}</pre>
+  </div>
+</div></section>
+
+<footer><div class="wrap">VQS · <a href="https://github.com/ahmedheakl/VQS">github.com/ahmedheakl/VQS</a></div></footer>
+
+<script>
+const DATA = {"Qwen3-VL-2B-Instruct":{"Base":[[58.25,null],[40.76,null],[69.02,null],[79.42,null],[38.92,null],[74.48,null],[68.54,null],[35.04,null],[55.62,null],[72.16,null],[59.22,null]],"VisPlay":[[58.65,"+0.40"],[41.15,"+0.39"],[69.96,"+0.94"],[80.74,"+1.32"],[39.27,"+0.35"],[74.52,"+0.04"],[68.56,"+0.02"],[34.93,"-0.11"],[55.37,"-0.25"],[71.62,"-0.54"],[59.48,"+0.26"]],"Vision-Zero":[[58.98,"+0.73"],[41.39,"+0.63"],[70.93,"+1.91"],[81.96,"+2.54"],[39.58,"+0.66"],[75.07,"+0.59"],[69.72,"+1.18"],[35.28,"+0.24"],[55.58,"-0.04"],[71.53,"-0.63"],[60.0,"+0.78"]],"EvoLMM":[[59.01,"+0.76"],[38.03,"-2.73"],[70.69,"+1.67"],[83.01,"+3.59"],[39.08,"+0.16"],[74.62,"+0.14"],[69.32,"+0.78"],[34.99,"-0.05"],[55.5,"-0.12"],[71.17,"-0.99"],[59.54,"+0.32"]],"iReasoner":[[59.13,"+0.88"],[38.13,"-2.63"],[70.82,"+1.80"],[83.12,"+3.70"],[39.11,"+0.19"],[74.75,"+0.27"],[69.67,"+1.13"],[35.09,"+0.05"],[55.59,"-0.03"],[71.25,"-0.91"],[59.67,"+0.45"]],"VISE":[[59.41,"+1.16"],[41.24,"+0.48"],[71.43,"+2.41"],[83.61,"+4.19"],[40.67,"+1.75"],[76.72,"+2.24"],[70.14,"+1.60"],[31.92,"-3.12"],[55.02,"-0.60"],[72.18,"+0.02"],[60.23,"+1.01"]],"VQS (ours)":[[59.52,"+1.27"],[42.6,"+1.84"],[72.01,"+2.99"],[86.81,"+7.39"],[46.78,"+7.86"],[78.26,"+3.78"],[71.54,"+3.00"],[36.83,"+1.79"],[57.04,"+1.42"],[72.61,"+0.45"],[62.4,"+3.18"]]},"Qwen3-VL-4B-Instruct":{"Base":[[60.32,null],[47.86,null],[77.73,null],[87.51,null],[45.17,null],[83.42,null],[76.79,null],[49.78,null],[62.67,null],[75.71,null],[66.7,null]],"VisPlay":[[60.06,"-0.26"],[48.04,"+0.18"],[77.96,"+0.23"],[87.3,"-0.21"],[45.42,"+0.25"],[83.47,"+0.05"],[76.11,"-0.68"],[49.34,"-0.44"],[62.13,"-0.54"],[74.83,"-0.88"],[66.47,"-0.23"]],"Vision-Zero":[[61.3,"+0.98"],[48.41,"+0.55"],[78.28,"+0.55"],[88.46,"+0.95"],[46.27,"+1.10"],[84.83,"+1.41"],[77.02,"+0.23"],[49.11,"-0.67"],[62.45,"-0.22"],[75.01,"-0.70"],[67.19,"+0.49"]],"EvoLMM":[[61.2,"+0.88"],[46.72,"-1.14"],[78.58,"+0.85"],[88.46,"+0.95"],[46.02,"+0.85"],[84.21,"+0.79"],[76.94,"+0.15"],[49.57,"-0.21"],[62.37,"-0.30"],[74.77,"-0.94"],[66.88,"+0.19"]],"iReasoner":[[61.32,"+1.00"],[46.89,"-0.97"],[78.76,"+1.03"],[88.62,"+1.11"],[46.13,"+0.96"],[84.34,"+0.92"],[76.98,"+0.19"],[49.65,"-0.13"],[62.46,"-0.21"],[74.84,"-0.87"],[67.0,"+0.30"]],"VISE":[[61.82,"+1.50"],[48.81,"+0.95"],[81.45,"+3.72"],[90.04,"+2.53"],[48.89,"+3.72"],[84.51,"+1.09"],[77.46,"+0.67"],[47.66,"-2.12"],[61.73,"-0.94"],[75.0,"-0.71"],[67.74,"+1.04"]],"VQS (ours)":[[62.86,"+2.54"],[48.19,"+0.33"],[80.23,"+2.50"],[93.11,"+5.60"],[54.78,"+9.61"],[83.93,"+0.51"],[77.8,"+1.01"],[50.1,"+0.32"],[63.29,"+0.62"],[75.82,"+0.11"],[69.01,"+2.32"]]},"Qwen3-VL-8B-Instruct":{"Base":[[61.54,null],[49.84,null],[81.23,null],[90.88,null],[50.12,null],[84.71,null],[77.66,null],[52.23,null],[64.96,null],[74.96,null],[68.81,null]],"VisPlay":[[61.66,"+0.12"],[49.93,"+0.09"],[81.36,"+0.13"],[91.02,"+0.14"],[52.61,"+2.49"],[84.62,"-0.09"],[78.24,"+0.58"],[51.88,"-0.35"],[64.52,"-0.44"],[74.34,"-0.62"],[69.02,"+0.21"]],"Vision-Zero":[[62.12,"+0.58"],[50.31,"+0.47"],[82.44,"+1.21"],[92.35,"+1.47"],[52.89,"+2.77"],[85.11,"+0.40"],[77.96,"+0.30"],[52.33,"+0.10"],[64.75,"-0.21"],[74.33,"-0.63"],[69.46,"+0.65"]],"EvoLMM":[[61.94,"+0.40"],[50.18,"+0.34"],[82.02,"+0.79"],[91.96,"+1.08"],[51.56,"+1.44"],[85.02,"+0.31"],[77.51,"-0.15"],[52.01,"-0.22"],[64.59,"-0.37"],[74.12,"-0.84"],[69.09,"+0.28"]],"iReasoner":[[62.02,"+0.48"],[50.24,"+0.40"],[82.15,"+0.92"],[92.11,"+1.23"],[51.83,"+1.71"],[85.09,"+0.38"],[77.82,"+0.16"],[52.09,"-0.14"],[64.67,"-0.29"],[74.18,"-0.78"],[69.22,"+0.41"]],"VISE":[[62.43,"+0.89"],[50.61,"+0.77"],[82.83,"+1.60"],[92.81,"+1.93"],[52.69,"+2.57"],[85.46,"+0.75"],[78.62,"+0.96"],[50.78,"-1.45"],[64.17,"-0.79"],[74.3,"-0.66"],[69.47,"+0.66"]],"VQS (ours)":[[61.97,"+0.43"],[53.0,"+3.16"],[83.13,"+1.90"],[94.65,"+3.77"],[57.56,"+7.44"],[85.82,"+1.11"],[78.49,"+0.83"],[54.24,"+2.01"],[68.14,"+3.18"],[75.39,"+0.43"],[71.24,"+2.43"]]},"Gemma3-12B-It":{"Base":[[61.2,null],[62.4,null],[52.1,null],[94.3,null],[46.5,null],[76.4,null],[24.5,null],[41.8,null],[58.9,null],[74.2,null],[59.23,null]],"VQS (ours)":[[62.02,"+0.82"],[62.71,"+0.31"],[55.29,"+3.19"],[95.23,"+0.93"],[50.84,"+4.34"],[79.06,"+2.66"],[27.7,"+3.20"],[42.87,"+1.07"],[59.8,"+0.90"],[74.47,"+0.27"],[61.0,"+1.77"]]},"InternVL3-8B-Instruct":{"Base":[[65.4,null],[64.1,null],[68.8,null],[96.5,null],[51.2,null],[81.3,null],[28.1,null],[48.6,null],[63.7,null],[76.9,null],[64.46,null]],"VQS (ours)":[[66.01,"+0.61"],[64.36,"+0.26"],[71.81,"+3.01"],[96.71,"+0.21"],[54.87,"+3.67"],[83.17,"+1.87"],[31.99,"+3.89"],[49.42,"+0.82"],[64.32,"+0.62"],[77.08,"+0.18"],[65.97,"+1.51"]]},"Llama-3.2-11B-Vision-Instruct":{"Base":[[56.0,null],[55.4,null],[46.9,null],[91.8,null],[50.7,null],[72.8,null],[21.2,null],[36.5,null],[55.1,null],[71.3,null],[55.77,null]],"VQS (ours)":[[57.13,"+1.13"],[56.05,"+0.65"],[49.87,"+2.97"],[93.47,"+1.67"],[53.64,"+2.94"],[76.04,"+3.24"],[24.18,"+2.98"],[37.79,"+1.29"],[56.22,"+1.12"],[71.68,"+0.38"],[57.61,"+1.84"]]}};
+const COLS = ["GQA", "OK-VQA", "InfoVQA", "SQA", "MMMU", "MMB", "ESB", "LogicV", "MMStar", "SEED", "Avg"];
+
+function renderTable(el, rows) {
+  const trained = Object.entries(rows).filter(([m]) => m !== "Base");
+  const best = COLS.map((_, i) => Math.max(...trained.map(([, v]) => v[i][0])));
+  let h = "<thead><tr><th>Method</th>" + COLS.map(c => `<th>${c}</th>`).join("") + "</tr></thead><tbody>";
+  for (const [m, v] of Object.entries(rows)) {
+    const ours = m.startsWith("VQS");
+    h += `<tr class="${ours ? "ours" : ""}"><td>${m}</td>`;
+    v.forEach(([x, d], i) => {
+      const cls = m !== "Base" && x === best[i] ? "best" : "";
+      const delta = d ? `<span class="d ${d.startsWith("-") ? "down" : "up"}">${d.replace("-", "−")}</span>` : "";
+      h += `<td class="${cls}"><span class="v">${x.toFixed(2)}</span>${delta}</td>`;
+    });
+    h += "</tr>";
+  }
+  el.innerHTML = h + "</tbody>";
+}
+
+function renderBars(el, items, max) {
+  el.innerHTML = items.map(([name, val, label, ours]) =>
+    `<div class="bar-row ${ours ? "ours" : ""}"><div>${name}</div>` +
+    `<div class="bar-track"><div class="bar-fill" data-w="${Math.max(0, val) / max * 100}"></div></div>` +
+    `<div class="bar-val">${label}</div></div>`).join("");
+  requestAnimationFrame(() => el.querySelectorAll(".bar-fill").forEach(b => b.style.width = b.dataset.w + "%"));
+}
+
+function makeTabs(el, keys, label, onPick) {
+  el.innerHTML = keys.map((k, i) => `<button class="tab" role="tab" aria-selected="${i === 0}" data-k="${k}">${label(k)}</button>`).join("");
+  el.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
+    el.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === b));
+    onPick(b.dataset.k);
+  }));
+  onPick(keys[0]);
+}
+
+const scales = Object.keys(DATA).filter(k => k.startsWith("Qwen3"));
+makeTabs(document.getElementById("scaleTabs"), scales, k => k.match(/\d+B/)[0], k => {
+  renderTable(document.getElementById("mainTable"), DATA[k]);
+  const gains = Object.entries(DATA[k]).filter(([m]) => m !== "Base").map(([m, v]) => [m.replace(" (ours)", ""), parseFloat(v[10][1]), v[10][1].replace("-", "−"), m.startsWith("VQS")]);
+  document.getElementById("gainTitle").textContent = `Average gain over base, Qwen3-VL-${k.match(/\d+B/)[0]}`;
+  renderBars(document.getElementById("gainBars"), gains, 3.4);
+});
+const fams = Object.keys(DATA).filter(k => !k.startsWith("Qwen3"));
+makeTabs(document.getElementById("famTabs"), fams, k => k.split("-").slice(0, k.startsWith("Llama") ? 2 : 1).join("-"), k => renderTable(document.getElementById("famTable"), DATA[k]));
+renderBars(document.getElementById("humanBars"), [["VQS", 94.4, "94.4%", true], ["Model judge", 82.2, "82.2%", false], ["Majority vote", 76.4, "76.4%", false]], 100);
+
+document.getElementById("copyBib").addEventListener("click", async (e) => {
+  try { await navigator.clipboard.writeText(document.getElementById("bib").textContent); e.target.textContent = "Copied"; }
+  catch { e.target.textContent = "Select and copy"; }
+  setTimeout(() => e.target.textContent = "Copy", 1600);
+});
+</script>
+</body>
+</html>
