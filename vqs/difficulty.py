@@ -19,6 +19,7 @@ Usage:
       --model runs/vqs_c1/ckpt/global_step_96/actor/huggingface
 """
 import argparse
+import functools
 import json
 import math
 import pathlib
@@ -36,6 +37,7 @@ MIN_PIXELS, MAX_PIXELS = 262144, 1003520         # scripts/train.sh data.min/max
 TARGET, WIDTH = 0.5, 0.15
 
 
+@functools.lru_cache(maxsize=512)
 def load_image(path):
     """EasyR1's resize (verl/utils/dataset.py:process_image), so the probe sees training pixels."""
     from PIL import Image
@@ -54,9 +56,14 @@ def solve_rates(rows, model, n):
     llm = LLM(model=model, max_model_len=4096, gpu_memory_utilization=0.85,
               limit_mm_per_prompt={"image": 1}, trust_remote_code=True, max_num_seqs=128)
     sp = SamplingParams(n=n, temperature=1.0, top_p=1.0, max_tokens=256, seed=0)
-    outs = generate(llm, rows, lambda r: {
+    # probe the rows image by image, so each image is decoded once; rates come back in row order
+    idx = sorted(range(len(rows)), key=lambda i: rows[i]["images"][0])
+    got = generate(llm, [rows[i] for i in idx], lambda r: {
         "prompt": IMG + r["problem"].replace("<image>", "", 1) + END,
         "multi_modal_data": {"image": load_image(r["images"][0])}}, sp)
+    outs = [None] * len(rows)
+    for i, o in zip(idx, got):
+        outs[i] = o
     rates = []
     for r, o in zip(rows, outs):
         gold = json.loads(r["answer"])

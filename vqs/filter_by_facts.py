@@ -68,16 +68,15 @@ def main():
     print(f"{len(rows)} rows -> {len(items)} atomic checks ({len(uniq)} distinct image-claim "
           f"pairs); {n_nocheck} rows have no identifiable facts (passed through)", flush=True)
 
-    from PIL import Image
     from vllm import LLM, SamplingParams
-    from vlm import generate
+    from vlm import generate, rgb
     llm = LLM(model=a.model, max_model_len=8192, gpu_memory_utilization=a.gpu_util,
               limit_mm_per_prompt={"image": 1}, trust_remote_code=True, max_num_seqs=256,
               mm_processor_kwargs={"max_pixels": 1003520})
     sp = SamplingParams(temperature=0, max_tokens=4)
     outs = generate(llm, uniq, lambda ic: {
         "prompt": IMG + Q.format(claim=ic[1]) + END,
-        "multi_modal_data": {"image": Image.open(ic[0]).convert("RGB")}}, sp)
+        "multi_modal_data": {"image": rgb(ic[0])}}, sp)
     yes = {k: o.outputs[0].text.strip().upper().startswith("Y") for k, o in zip(uniq, outs)}
     bad = {i for i, c in items if not yes[(rows[i]["image"], c)]}
     kept = [r for i, r in enumerate(rows) if i not in bad]

@@ -24,7 +24,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from filter_by_facts import Q                            # noqa: E402  (the checker's prompt)
 from parse_images import MODEL, PROMPTS, SCHEMAS         # noqa: E402
-from vlm import END, IMG, generate                       # noqa: E402
+from vlm import END, IMG, generate, rgb                  # noqa: E402
 
 LF_INFO = {"parser_sft": {"file_name": "parser_sft.json", "formatting": "sharegpt",
                           "columns": {"messages": "messages", "images": "images"},
@@ -105,7 +105,6 @@ def main():
     assert rows, "empty manifest"
     print(f"{len(rows)} images, K={a.k}", flush=True)
 
-    from PIL import Image
     from vllm import LLM, SamplingParams
     from vllm.sampling_params import StructuredOutputsParams
     llm = LLM(model=a.model, max_model_len=16384, gpu_memory_utilization=0.90,
@@ -121,7 +120,7 @@ def main():
                             structured_outputs=StructuredOutputsParams(json=SCHEMAS[dom]))
         outs = generate(llm, sub, lambda r: {
             "prompt": IMG + PROMPTS[dom] + END,
-            "multi_modal_data": {"image": Image.open(r["image"]).convert("RGB")}}, sp)
+            "multi_modal_data": {"image": rgb(r["image"])}}, sp)
         n_trunc = 0
         for r, o in zip(sub, outs):
             for c in o.outputs:
@@ -142,7 +141,7 @@ def main():
           f"({len(uniq)} distinct image-claim pairs)", flush=True)
     outs = generate(llm, uniq, lambda ic: {
         "prompt": IMG + Q.format(claim=ic[1]) + END,
-        "multi_modal_data": {"image": Image.open(ic[0]).convert("RGB")}},
+        "multi_modal_data": {"image": rgb(ic[0])}},
         SamplingParams(temperature=0, max_tokens=4))
     verdict = {k: o.outputs[0].text.strip().upper().startswith("Y") for k, o in zip(uniq, outs)}
     yes = collections.Counter()
