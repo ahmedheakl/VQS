@@ -276,6 +276,8 @@ python vqs/reward/exact_match.py
 # 0. train the parser: best-of-K targets, then SFT     → runs/parser_sft
 python vqs/select_parser_targets.py --manifest data/manifest.jsonl --out data/parser_sft
 llamafactory-cli train configs/parser_sft.yaml
+# a full fine-tune in LLaMA-Factory does not save chat_template.json; copy the base model's
+python -c "from huggingface_hub import hf_hub_download as d; import shutil; shutil.copy(d('Qwen/Qwen3-VL-2B-Instruct', 'chat_template.json'), 'runs/parser_sft/')"
 P=runs/parser_sft
 
 # 1. parse with the trained parser                    → parses.jsonl
