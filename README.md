@@ -6,6 +6,7 @@
 
 <sup>1</sup>LG AI Research &nbsp;&nbsp; <sup>2</sup>MBZUAI &nbsp;&nbsp; <sup>3</sup>Australian National University &nbsp;&nbsp; <sup>4</sup>University of Illinois at Chicago
 
+<a href="https://arxiv.org/abs/2609.33855"><img src="https://img.shields.io/badge/arXiv-2609.33855-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a>
 <a href="https://ahmedheakl.github.io/VQS/"><img src="https://img.shields.io/badge/Project-Page-2563eb?style=for-the-badge" alt="Project page"></a>
 <a href="https://github.com/ahmedheakl/VQS"><img src="https://img.shields.io/badge/Code-GitHub-111827?style=for-the-badge&logo=github" alt="Code"></a>
 <img src="https://img.shields.io/badge/Backbone-Qwen3--VL-7c3aed?style=for-the-badge" alt="Qwen3-VL">
@@ -394,11 +395,12 @@ scripts/eval.sh               lmms-eval over the 10 benchmarks
 ## Citation
 
 ```bibtex
-@misc{heakl2026vqs,
-  title  = {Program-Verified Self-Evolution for Vision-Language Models},
-  author = {Heakl, Ahmed and Choi, Sungik and Lee, Moontae and Khan, Salman},
-  year   = {2026},
-  url    = {https://github.com/ahmedheakl/VQS}
+@article{heakl2026vqs,
+  title   = {Program-Verified Self-Evolution for Vision-Language Models},
+  author  = {Heakl, Ahmed and Choi, Sungik and Lee, Moontae and Khan, Salman},
+  journal = {arXiv preprint arXiv:2609.33855},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2609.33855}
 }
 ```
 
