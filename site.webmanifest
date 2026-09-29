@@ -1,0 +1,12 @@
+{
+  "name": "VQS: Program-Verified Self-Evolution for Vision-Language Models",
+  "short_name": "VQS",
+  "icons": [
+    {"src": "static/icons/icon-192.png", "type": "image/png", "sizes": "192x192"},
+    {"src": "static/icons/icon-512.png", "type": "image/png", "sizes": "512x512"}
+  ],
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "./"
+}
