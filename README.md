@@ -175,7 +175,8 @@ VQS gives the largest average gain at every scale, and it improves all ten bench
 
 </details>
 
-<sub>InfoVQA = InfographicsVQA, SQA = ScienceQA, MMB = MMBench, ESB = EmbSpatial, LogicV = LogicVista.
+<sub>Numbers for methods other than VQS are taken from the VISE paper (Venkatraman et al., 2026).
+InfoVQA = InfographicsVQA, SQA = ScienceQA, MMB = MMBench, ESB = EmbSpatial, LogicV = LogicVista.
 Bold marks the best trained model per column.</sub>
 
 ### Are the generated answers correct?
