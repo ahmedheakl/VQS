@@ -7,6 +7,7 @@
 <sup>1</sup>LG AI Research &nbsp;&nbsp; <sup>2</sup>MBZUAI &nbsp;&nbsp; <sup>3</sup>Australian National University &nbsp;&nbsp; <sup>4</sup>University of Illinois at Chicago
 
 <a href="https://arxiv.org/abs/2609.33855"><img src="https://img.shields.io/badge/arXiv-2609.33855-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a>
+<a href="https://huggingface.co/ahmedheakl/VQS"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Model-VQS--2B-ffc107?style=for-the-badge" alt="Model on Hugging Face"></a>
 <a href="https://ahmedheakl.github.io/VQS/"><img src="https://img.shields.io/badge/Project-Page-2563eb?style=for-the-badge" alt="Project page"></a>
 <a href="https://github.com/ahmedheakl/VQS"><img src="https://img.shields.io/badge/Code-GitHub-111827?style=for-the-badge&logo=github" alt="Code"></a>
 <img src="https://img.shields.io/badge/Backbone-Qwen3--VL-7c3aed?style=for-the-badge" alt="Qwen3-VL">
@@ -18,8 +19,9 @@
   <img src="assets/radar.png" width="40%" alt="VQS improves every benchmark on Qwen3-VL-2B">
 </p>
 
-**VQS** (**V**erifiable **Q**A Generation for **S**elf-Evolving Models) lets a vision-language model
-improve itself from unlabeled images, without majority votes or model judges. The model parses each
+**VQS** (**V**erifiable **Q**A Generation for **S**elf-Evolving Models), from our paper
+[*Program-Verified Self-Evolution for Vision-Language Models*](https://arxiv.org/abs/2609.33855), lets a
+vision-language model improve itself from unlabeled images, without majority votes or model judges. The model parses each
 image into a structured record (a scene graph, a chart table, a diagram graph), and fixed programs
 write a question from that record and **compute** its answer. The same model then checks every fact
 the program read, one short claim at a time, and those claim-level checks also pick the parser's own
@@ -37,8 +39,34 @@ training targets. One set of weights plays parser, checker and solver.
 <p align="center"><a href="https://ahmedheakl.github.io/VQS/#explore"><b>Explore 93 traced questions interactively →</b></a><br>
 <sub>parses, template programs, fact-check read-backs and blind-gate guesses, from image to keep-or-drop</sub></p>
 
+## Released model
+
+[**VQS-2B**](https://huggingface.co/ahmedheakl/VQS) is Qwen3-VL-2B-Instruct trained with VQS. It loads like
+any Qwen3-VL checkpoint:
+
+```python
+from transformers import AutoModelForImageTextToText, AutoProcessor
+from PIL import Image
+
+model = AutoModelForImageTextToText.from_pretrained("ahmedheakl/VQS", dtype="auto", device_map="auto")
+processor = AutoProcessor.from_pretrained("ahmedheakl/VQS")
+
+messages = [{"role": "user", "content": [
+    {"type": "image"},
+    {"type": "text", "text": "In 2020, which is higher, Stayovers or Day trippers?\n"
+                             "Answer the question using a single word or phrase."},
+]}]
+text = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+inputs = processor(text=[text], images=[Image.open("chart.png")], return_tensors="pt").to(model.device)
+out = model.generate(**inputs, max_new_tokens=64, do_sample=False)
+print(processor.batch_decode(out[:, inputs["input_ids"].shape[1]:], skip_special_tokens=True)[0])
+```
+
+See the [model card](https://huggingface.co/ahmedheakl/VQS) for vLLM usage and training details.
+
 ## Contents
 
+- [Released model](#released-model)
 - [Why computed answers](#why-computed-answers)
 - [Method](#method)
 - [Results](#results)
