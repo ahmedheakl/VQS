@@ -6,6 +6,10 @@ band      The difficulty band (paper Sec. 3, Eq. 1; settings in Sec. 4). The sol
           kept only when 0 < p < 1: a group that is all right or all wrong gives every rollout the
           same advantage and so no gradient. Row order is preserved, so the curriculum that
           build_rl_data.py wrote survives. val.jsonl is copied unchanged.
+          The band keeps "no" far more often than "yes" (a base model that says "yes" to an easy
+          existence question is always right, so the question looks too easy), so closed-answer
+          families (2-4 distinct answers, e.g. yes/no) are then downsampled to their rarest answer
+          and cannot be solved from the answer prior. --no-balance turns this off.
 
 resample  Later training cycles (paper Sec. 5). The previous cycle's merged solver answers every
           question of the combined pools 8 times; s is its fraction correct. Each question gets
@@ -24,6 +28,7 @@ import json
 import math
 import pathlib
 import random
+import re
 import shutil
 import sys
 
@@ -35,6 +40,7 @@ from vlm import END, IMG, generate                      # noqa: E402
 MODEL = "Qwen/Qwen3-VL-2B-Instruct"
 MIN_PIXELS, MAX_PIXELS = 262144, 1003520         # scripts/train.sh data.min/max_pixels
 TARGET, WIDTH = 0.5, 0.15
+CLOSED_MAX = 4          # a family with at most this many distinct answers is closed-answer
 
 
 @functools.lru_cache(maxsize=512)
@@ -73,6 +79,21 @@ def solve_rates(rows, model, n):
     return rates
 
 
+def balance(rows, seed=0):
+    """Downsample each closed-answer family to its rarest answer; row order is preserved."""
+    norm = lambda a: " ".join(re.sub(r"[^a-z0-9.% ]+", " ", str(a).strip().lower()).split())
+    by = {}
+    for i, r in enumerate(rows):
+        by.setdefault(r["family"], {}).setdefault(norm(json.loads(r["answer"])["answer"]), []).append(i)
+    rng, keep = random.Random(seed), set(range(len(rows)))
+    for labels in by.values():
+        if 2 <= len(labels) <= CLOSED_MAX:
+            m = min(len(v) for v in labels.values())
+            for v in labels.values():
+                keep -= set(rng.sample(v, len(v) - m))
+    return [r for i, r in enumerate(rows) if i in keep]
+
+
 def weight(s):
     return 0.0 if s <= 0.0 or s >= 1.0 else math.exp(-((s - TARGET) / WIDTH) ** 2)
 
@@ -97,6 +118,8 @@ def main():
     ap.add_argument("--n", type=int, default=8, help="sampled answers per question")
     ap.add_argument("--size", type=int, default=8000, help="resample: rows to draw")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--no-balance", dest="balance", action="store_false",
+                    help="band: keep closed-answer families as the band left them")
     a = ap.parse_args()
 
     assert a.mode == "resample" or len(a.data) == 1, "band filters one pool"
@@ -118,7 +141,12 @@ def main():
           f"{sum(1 for s in rates if s == 1.0)}, in between {len(rows) - n_dead}")
 
     if a.mode == "band":
-        write(a.out, [r for r, s in zip(rows, rates) if 0.0 < s < 1.0], a.data[0])
+        kept = [r for r, s in zip(rows, rates) if 0.0 < s < 1.0]
+        if a.balance:
+            n = len(kept)
+            kept = balance(kept, a.seed)
+            print(f"balanced closed-answer families: {n} -> {len(kept)} rows")
+        write(a.out, kept, a.data[0])
         return
     w = [weight(s) for s in rates]
     assert sum(w) > 0, "every question is always or never solved"
